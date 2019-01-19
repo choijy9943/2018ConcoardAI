@@ -1,0 +1,86 @@
+from rdflib import Graph
+import random
+g = Graph()
+g.parse("data.ttl", format="turtle")
+subject_keywords={"basilica":"\"Basilique-cathedrale de notre dame de Quebec\"@en"}
+predicate_keywords={"know":"b"}
+property_keywords={"registered":"p:isRegsiteredIn","structure":"p:hasStructure", "religious":"p:hasReligiousOrder",
+                  "location":"p:hasLocation", "part":"p:isPartOf","status":"p:hasStatus","history":"p:hasHistoricalInfos",
+                  "historical":"p:hasHistoricalInfos"}
+#the_input="Do you know the Basilica Notre Dame de Quebec?"
+subject_of_conv=""
+the_input=input()
+while the_input != "exit":
+    #Identify subject of query
+    for word in the_input.split():
+        if word.lower() in subject_keywords:
+            subject_of_conv=word.lower()
+            break
+    if subject_of_conv=="":
+        subject_of_conv=random.choice(list(subject_keywords.keys()))
+    #Retrieve one object matching the subject
+    qstring=("""CONSTRUCT {{ ?a {} {}  }} 
+             WHERE {{ ?a {} {} }}""")\
+             .format("rdfs:label",subject_keywords[subject_of_conv],"rdfs:label",subject_keywords[subject_of_conv])
+    quer1_res=list(g.query(qstring))[0]
+    pretty_subject=g.label(quer1_res[0])
+    #Check if a particular property is queried:
+    prop_of_conv=""
+    for word in the_input.split():
+        if word.lower() in property_keywords:
+            prop_of_conv=word.lower()
+            break
+    if prop_of_conv=="":
+        prop_of_conv=random.choice(list(property_keywords.keys()))
+    qstring=("""CONSTRUCT {{ <{}> {} ?c  }}
+             WHERE {{ <{}> {} ?c }}""")\
+            .format(quer1_res[0],property_keywords[prop_of_conv],quer1_res[0],property_keywords[prop_of_conv])
+    #rint(qstring)
+    quer2_res=list(g.query(qstring))[0]
+    pretty_predicate=g.label(quer2_res[1])
+    #print(g.label(quer1_res[0]),g.label(quer1_res[1]),g.label(quer1_res[2]))
+    #print(g.label(quer2_res[0]),g.label(quer2_res[1]),g.label(quer2_res[2]))
+    ctr=0
+    #while(g.label(quer2_res[2])=="" or quer2_res==)and ctr<5:
+    while True:
+        try:
+            temp=quer2_res[2]
+            #Check for one kind of label
+            qstring=("""CONSTRUCT {{ <{}> {} ?c  }}
+                 WHERE {{ <{}> {} ?c }}""")\
+                .format(temp,"foaf:label",temp,"foaf:label")
+            #print(qstring)
+            check_res=list(g.query(qstring))
+            if len(check_res)>0:
+                pretty_object=check_res[0][2].split(":")[-1].split("#")[-1]
+                break
+            #Check for the other kind of label
+            qstring=("""CONSTRUCT {{ <{}> {} ?c  }}
+                 WHERE {{ <{}> {} ?c )}}""")\
+                .format(temp,"rdfs:label",temp,"rdfs:label")
+            #print(qstring)
+            check_res=list(g.query(qstring))
+            if len(check_res)>0:
+                pretty_object=check_res[0][2].split(":")[-1].split("#")[-1]
+                break
+            #Break if too many iterations
+            if ctr>5:
+                pretty_object=temp.split("/")[-1].split("#")[-1]
+                break
+            #Recurse
+            qstring=("""CONSTRUCT {{ <{}> ?b ?c  }}
+                 WHERE {{ <{}> ?b ?c }}""")\
+                .format(temp,temp)
+            #print(qstring)
+            quer2_res=list(g.query(qstring))[0]
+        except :
+            pretty_object=temp.split("/")[-1].split("#")[-1]
+            break
+        ctr+=1
+    #pretty_object=g.label(quer2_res[2])
+    #pretty_object=""
+    print(("{} {} {}").format(pretty_subject,pretty_predicate,pretty_object))
+    #print(("{} {}").format(pretty_subject,pretty_predicate))
+    the_input=input()
+    pass
+print("I love you come back!")
